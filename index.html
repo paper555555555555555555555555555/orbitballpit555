@@ -55,21 +55,15 @@
 </script>
 
 <script>
-/* ===== Orbit Ballpit wallpaper (for Lively Wallpaper) =====
-   Physics ported from MalikHw's orbit-screensaver main.cpp (Box2D):
-   PPM 40, gravity 9.8*3, orbs: radius 40-59px, density 1, restitution 0.5, friction 1.0,
-   walls/cube: restitution 0.5, friction 0.7, step 1/60 with 8 velocity + 3 position iterations,
-   spawn above the screen, fill -> wait 5-6s -> remove the floor -> everything drops -> repeat. */
+
+
 const CFG = {
   orbCount: 120,      // orbs per fill (original default: 120)
   spawnPerSec: 3,     // orbs dropped per second (original: 3 at speed 10)
   gravity: 1,         // multiplier on the original gravity (9.8 * 3 m/s^2)
   bounce: 0.5,        // restitution of orbs, cube and walls (original: 0.5)
   orbScale: 1,        // orb size multiplier (original: 1)
-  fillLine: 0.08,     // also drain early if the pile reaches this height from the top
-  mouseForce: true,   // mouse interaction on/off
-  mouseMode: 2,       // 0 = bumper only, 1 = grab only, 2 = both
-  mouseStrength: 1
+  fillLine: 0.08      // also drain early if the pile reaches this height from the top
 };
 
 const SPRITES = [
@@ -97,7 +91,7 @@ const imgs = SPRITES.map(src => { const im = new Image(); im.src = src; return i
 const rnd = () => Math.random();
 
 /* ---------- world ---------- */
-let world, ground, floorBody, cursorBody, cursorFix, joint = null;
+let world, floorBody;
 let walls = [], balls = [], st;
 
 function addWall(x1, y1, x2, y2) {
@@ -108,22 +102,12 @@ function addWall(x1, y1, x2, y2) {
   return b;
 }
 
-function cursorRadius() { return 85 * CFG.mouseStrength / PPM; }
-function makeCursorFixture() {
-  if (cursorFix) cursorBody.destroyFixture(cursorFix);
-  cursorFix = cursorBody.createFixture(pl.Circle(cursorRadius()), { friction: 0.3, restitution: 0.4 });
-}
-
 function reset() {
-  joint = null; mouse.grab = null;
   world = new pl.World({ gravity: Vec2(0, 9.8 * 3 * CFG.gravity) });
-  ground = world.createBody();
   walls = []; balls = [];
   addWall(0, 0, 0, VH);
   addWall(VW, 0, VW, VH);
   floorBody = addWall(0, VH, VW, VH);
-  cursorBody = world.createBody({ type: 'kinematic', position: Vec2(-1000, -1000) });
-  cursorFix = null; makeCursorFixture();
   st = { acc: 1, nextSpawn: 0, cubeDone: false, t: 0, doneAt: 0, delay: 0, draining: false, drainT: 0 };
 }
 
@@ -209,58 +193,6 @@ function logic(dt) {
   }
 }
 
-/* ---------- mouse ---------- */
-  /*
-const mouse = { x: 0, y: 0, on: false, grab: null };   // x,y in virtual px
-function setMouse(e) { mouse.x = e.clientX * dpr / rs; mouse.y = e.clientY * dpr / rs; mouse.on = true; }
-addEventListener('mousemove', setMouse);
-addEventListener('mousedown', e => {
-  if (!CFG.mouseForce || !world) return;
-  setMouse(e);
-  const p = Vec2(mouse.x / PPM, mouse.y / PPM);
-  for (let i = balls.length - 1; CFG.mouseMode !== 0 && i >= 0; i--) {   // grab the top-most orb under the cursor
-    const b = balls[i];
-    if (b.body.getFixtureList().testPoint(p)) {
-      b.body.setAwake(true);
-      joint = world.createJoint(pl.MouseJoint(
-        { maxForce: 1000 * b.body.getMass(), frequencyHz: 5, dampingRatio: 0.9 }, ground, b.body, p));
-      mouse.grab = b;
-      return;
-    }
-  }
-  if (CFG.mouseMode === 1) return;                                // grab-only mode: no blast
-  const R = 320 * CFG.mouseStrength / PPM;                        // click: blast nearby orbs away
-  for (const b of balls) {
-    const c = b.body.getPosition(), dx = c.x - p.x, dy = c.y - p.y, d = Math.hypot(dx, dy);
-    if (d < R && d > 0.01) {
-      const dv = (1 - d / R) * 30 * CFG.mouseStrength;
-      b.body.applyLinearImpulse(Vec2(dx / d * dv * b.body.getMass(), dy / d * dv * b.body.getMass()), b.body.getWorldCenter(), true);
-    }
-  }
-});
-function release() { if (joint) { try { world.destroyJoint(joint); } catch (e) {} joint = null; } mouse.grab = null; }
-addEventListener('mouseup', release);
-addEventListener('blur', () => { release(); mouse.on = false; });
-document.addEventListener('mouseleave', () => { release(); mouse.on = false; });
-
-function updateMouse() {
-  const p = Vec2(mouse.x / PPM, mouse.y / PPM);
-  if (joint) joint.setTarget(p);
-  // the cursor is a kinematic circle that sweeps through the pile; parked off-screen when unused
-  if (CFG.mouseForce && CFG.mouseMode !== 1 && mouse.on && !joint) {
-    const cur = cursorBody.getPosition();
-    if (cur.x < -500 / PPM) { cursorBody.setPosition(p); cursorBody.setLinearVelocity(Vec2(0, 0)); }
-    else {
-      let vx = (p.x - cur.x) / STEP, vy = (p.y - cur.y) / STEP;
-      const m = 30, s = Math.hypot(vx, vy);
-      if (s > m) { vx *= m / s; vy *= m / s; }
-      cursorBody.setLinearVelocity(Vec2(vx, vy));
-    }
-  } else {
-    cursorBody.setPosition(Vec2(-1000, -1000)); cursorBody.setLinearVelocity(Vec2(0, 0));
-  }
-}
-*/
 /* ---------- sizing ---------- */
 function resize() {
   dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -281,7 +213,7 @@ function frame(now) {
   logic(dt);
   accT += dt;
   let n = 0;
-  while (accT >= STEP && n < 5) { updateMouse(); world.step(STEP, 8, 3); accT -= STEP; n++; }
+  while (accT >= STEP && n < 5) { world.step(STEP, 8, 3); accT -= STEP; n++; }
   if (n === 5) accT = 0;
   draw();
 }
@@ -310,13 +242,6 @@ requestAnimationFrame(frame);
 
 /* ---------- Lively Wallpaper properties ---------- */
 window.livelyPropertyListener = function (name, val) {
-  if (name === 'mouseForce') { CFG.mouseForce = (val === true || val === 'true'); if (!CFG.mouseForce) release(); return; }
-  if (name === 'mouseMode') {
-    const s = String(val).toLowerCase();
-    CFG.mouseMode = s.indexOf('both') >= 0 ? 2 : s.indexOf('grab') >= 0 ? 1 : s.indexOf('bump') >= 0 ? 0 : (Number(val) | 0);
-    if (CFG.mouseMode === 0) release();
-    return;
-  }
   const n = Number(val);
   if (!isFinite(n) || !(name in CFG)) return;
   CFG[name] = (name === 'orbScale') ? Math.max(0.3, Math.min(3, n)) : n;
@@ -327,7 +252,6 @@ window.livelyPropertyListener = function (name, val) {
     for (const w of walls) for (let f = w.getFixtureList(); f; f = f.getNext()) f.setRestitution(n);
     for (const b of balls) for (let f = b.body.getFixtureList(); f; f = f.getNext()) f.setRestitution(n);
   }
-  if (name === 'mouseStrength') makeCursorFixture();
 };
 </script>
 </body>
